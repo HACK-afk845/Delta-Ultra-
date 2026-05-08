@@ -1,0 +1,140 @@
+-- Delta Ultra Admin Hub (FINAL VERSION)
+local player = game.Players.LocalPlayer
+local userId = player.UserId
+
+-- [1. حماية الميتا-تيبل ومنع الـ Logs والـ Kick]
+pcall(function()
+    local gmt = getrawmetatable(game)
+    setreadonly(gmt, false)
+    local old = gmt.__namecall
+    gmt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "FireServer" and (tostring(self):find("Log") or tostring(self):find("Admin") or tostring(self):find("Report")) then 
+            return nil 
+        end
+        if method == "Kick" then return nil end
+        return old(self, ...)
+    end)
+    setreadonly(gmt, true)
+end)
+
+-- [2. واجهة المستخدم Scrolling GUI]
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("ScrollingFrame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 230, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -115, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.CanvasSize = UDim2.new(0, 0, 2.5, 0) -- مساحة كبيرة لكل الأزرار
+MainFrame.ScrollBarThickness = 5
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local Layout = Instance.new("UIListLayout", MainFrame)
+Layout.Padding = UDim.new(0, 5)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "DELTA ULTRA HUB V3"
+Title.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.SourceSansBold
+
+-- وظيفة إنشاء الأزرار
+local function createButton(text, color, func)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Text = text
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.MouseButton1Click:Connect(func)
+    return btn
+end
+
+-- [3. ميزة الأوتو شات (Auto Chat)]
+local autoChatActive = false
+local chatBtn = createButton("Auto Chat: OFF ❌", Color3.fromRGB(60, 60, 60), function()
+    autoChatActive = not autoChatActive
+    _G.chatBtn.Text = autoChatActive and "Auto Chat: ON ✅" or "Auto Chat: OFF ❌"
+    _G.chatBtn.BackgroundColor3 = autoChatActive and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+end)
+_G.chatBtn = chatBtn
+
+task.spawn(function()
+    while true do
+        if autoChatActive then
+            local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+            if chatEvent then
+                chatEvent.SayMessageRequest:FireServer("DELTA HUB OWNED THIS SERVER!", "All")
+            end
+        end
+        task.wait(3) -- سرعة الرسائل
+    end
+end)
+
+-- [4. قسم الـ FE BANG]
+local bangInput = Instance.new("TextBox", MainFrame)
+bangInput.Size = UDim2.new(0.9, 0, 0, 35)
+bangInput.PlaceholderText = "Write Player Name..."
+bangInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+bangInput.TextColor3 = Color3.new(1, 1, 1)
+
+local bangLoop
+createButton("START BANGING", Color3.fromRGB(200, 0, 100), function()
+    local target = nil
+    for _, v in pairs(game.Players:GetPlayers()) do
+        if v ~= player and v.Name:lower():find(bangInput.Text:lower()) then target = v break end
+    end
+    if target and target.Character then
+        if bangLoop then bangLoop:Disconnect() end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://148840371"
+        local load = player.Character.Humanoid:LoadAnimation(anim)
+        load:Play()
+        load:AdjustSpeed(5)
+        bangLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            pcall(function() player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1.1) end)
+        end)
+    end
+end)
+
+createButton("STOP BANG", Color3.fromRGB(80, 80, 80), function()
+    if bangLoop then bangLoop:Disconnect() end
+    for _, v in pairs(player.Character.Humanoid:GetPlayingAnimationTracks()) do v:Stop() end
+end)
+
+-- [5. الأوامر التدميرية]
+createButton("KILL ALL PLAYERS 💀", Color3.fromRGB(150, 0, 0), function()
+    for _, v in pairs(game.Players:GetPlayers()) do
+        if v ~= player and v.Character then v.Character:BreakJoints() end
+    end
+end)
+
+createButton("DESTROY MAP 💣", Color3.fromRGB(200, 80, 0), function()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if not obj:IsA("Camera") and not game.Players:GetPlayerFromCharacter(obj) then obj:Destroy() end
+    end
+end)
+
+-- [6. قسم السكنات وحماية الهوية]
+local skins = {"fh_556", "su620053", "utcyrxrx"}
+for _, name in pairs(skins) do
+    createButton("Skin: "..name, Color3.fromRGB(40, 60, 80), function()
+        player.CharacterAppearanceId = game.Players:GetUserIdFromNameAsync(name)
+        player:LoadCharacter()
+    end)
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        for _, v in pairs(game.Players:GetPlayers()) do
+            if v ~= player and v.CharacterAppearanceId == player.CharacterAppearanceId then
+                pcall(function() v.Character:BreakJoints() end)
+            end
+        end
+    end
+end)
+
+-- [7. زر الإغلاق]
+createButton("CLOSE MENU", Color3.fromRGB(100, 0, 0), function() ScreenGui:Destroy() end)
